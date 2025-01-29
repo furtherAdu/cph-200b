@@ -16,7 +16,7 @@ from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from src.data_dict import clinical_feature_type
-from src.torch import CoxRiskTorch
+from src._torch import CoxRiskTorch
 from src.directory import log_dir
 from src.metrics import cox_partial_likelihood
 
@@ -114,13 +114,11 @@ class CoxRiskLightning(pl.LightningModule):
         # metrics & loss
         self.cindex = ConcordanceIndex()
         self.auc = Auc()
-        # self.loss = neg_partial_log_likelihood
         self.loss = cox_partial_likelihood
         self.metric_dict = defaultdict(dict)
 
         # structures to hold outputs until epoch end
         self.outputs = defaultdict(list)
-        self.hessian = torch.zeros((self.n_features, self.n_features))
 
         # init weights
         self.model.apply(self.init_weights)
@@ -149,6 +147,9 @@ class CoxRiskLightning(pl.LightningModule):
 
         return loss
 
+    def on_epoch_start(self, stage):
+        pass
+
     def on_epoch_end(self, stage):
         # concat outputs
         y_hat = torch.cat([o["y_hat"] for o in self.outputs[stage]]).squeeze()
@@ -166,9 +167,6 @@ class CoxRiskLightning(pl.LightningModule):
 
         if stage not in ['predict']:  # log metrics
             self.log_dict(metric_dict, prog_bar=True, sync_dist=True)
-        # else:  # calculate p value and return
-        #     coefficient_pvals = self.get_coefficient_pvals()
-        #     metric_dict.update({f'{stage}_{k}': v for k, v in coefficient_pvals.items()})
 
         self.metric_dict[stage].update(metric_dict)
 
@@ -290,15 +288,3 @@ class CoxRiskLightning(pl.LightningModule):
     def predict_epoch_end(self):
         y_hat = torch.cat([o["y_hat"] for o in self.outputs['predict']]).squeeze()
         return y_hat
-
-    def on_train_epoch_start(self):
-        self.on_epoch_start('train')
-
-    def on_validation_epoch_start(self):
-        self.on_epoch_start('val')
-
-    def on_test_epoch_start(self):
-        self.on_epoch_start('test')
-
-    def on_predict_epoch_start(self):
-        self.on_epoch_start('predict')

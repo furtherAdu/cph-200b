@@ -6,7 +6,11 @@ feature_config = dict(
                 'serum_creatinine', 'serum_sodium', 'sex', 'smoking'],
     unos=["init_age", "gender", "hgt_cm_tcr", "wgt_kg_tcr", "diab", "ventilator_tcr",
           "ecmo_tcr", "most_rcnt_creat", "abo_A", "abo_B", "abo_O", "vad_while_listed",
-          "iabp_tcr", "init_bmi_calc", "tah", "inotropic"]
+          "iabp_tcr", "init_bmi_calc", "tah", "inotropic"],
+    flchain=['flc.grp', 'creatinine', 'kappa', 'sample.yr', 'lambda', 'age', 'sex', 'mgus'],
+    gbsg=['x4', 'x5', 'x0', 'x1', 'x6', 'x2', 'x3'],
+    metabric=['x7', 'x4', 'x8', 'x5', 'x0', 'x1', 'x6', 'x2', 'x3'],
+    nwtco=['histol_2', 'instit_2', 'study_4', 'age', 'in.subcohort', 'stage']
 )
 
 clinical_feature_type = dict(
@@ -42,26 +46,38 @@ clinical_feature_type = dict(
           'iabp_tcr': 'categorical',
           'init_bmi_calc': 'numerical',
           'tah': 'categorical',
-          'inotropic': 'categorical'}
+          'inotropic': 'categorical'},
+    flchain={'flc.grp': 'categorical', 
+             'creatinine': 'numerical', 
+             'kappa': 'numerical', 
+             'sample.yr': 'categorical', 
+             'lambda': 'numerical',
+             'age': 'numerical',
+             'sex': 'categorical',
+             'mgus': 'categorical'},
+    gbsg={'x4': 'numerical',
+          'x5': 'numerical', 
+          'x0':'categorical', 
+          'x1':'categorical', 
+          'x6': 'numerical', 
+          'x2':'categorical', 
+          'x3': 'numerical'},
+    metabric={'x7':'categorical', 
+              'x4':'categorical', 
+              'x8': 'numerical', 
+              'x5':'categorical', 
+              'x0': 'numerical', 
+              'x1': 'numerical', 
+              'x6':'categorical', 
+              'x2': 'numerical', 
+              'x3': 'numerical'},
+    nwtco={'histol_2': 'categorical', 
+           'instit_2': 'categorical', 
+           'study_4': 'categorical', 
+           'age': 'numerical', 
+           'in.subcohort': 'categorical', 
+           'stage': 'categorical'}
 )
-
-# subgroup_feature_type = dict(
-#     age='histogram',
-#     sex='categorical'
-# )
-
-dataset_stats = {'unos': {'init_age': {'mean': 44.312182195803196, 'std': 19.00969775184649},
-                          'hgt_cm_tcr': {'mean': 164.42901203179832, 'std': 32.519173421696735},
-                          'wgt_kg_tcr': {'mean': 75.5248756320275, 'std': 28.273276335328312},
-                          'most_rcnt_creat': {'mean': 1.3746322423547948, 'std': 1.1524063830664726},
-                          'init_bmi_calc': {'mean': 26.068502282660212, 'std': 8.497129255043367}},
-                 'faisalabad': {'age': {'mean': 60.83389297658862, 'std': 11.894809074044478},
-                                'creatinine_phosphokinase': {'mean': 581.8394648829432,
-                                                             'std': 970.2878807124363},
-                                'ejection_fraction': {'mean': 38.08361204013378, 'std': 11.834840741039173},
-                                'platelets': {'mean': 263358.02926421404, 'std': 97804.23686859828},
-                                'serum_creatinine': {'mean': 1.3938795986622072, 'std': 1.034510064089853},
-                                'serum_sodium': {'mean': 136.62541806020067, 'std': 4.412477283909233}}}
 
 feature_transforms = defaultdict(lambda: defaultdict(list))
 
