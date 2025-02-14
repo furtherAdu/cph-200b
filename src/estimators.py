@@ -2,11 +2,10 @@ import pandas as pd
 import numpy as np
 from scipy.stats import norm
 from sklearn.neighbors import NearestNeighbors
-from lifelines.utils import concordance_index
 from lifelines import KaplanMeierFitter
 
 
-def kaplan_meier(df, time_col='time', event_col='DEATH_EVENT', observed_col='N_observed', alpha=0.05):
+def kaplan_meier(df, time_col='time', event_col='DEATH_EVENT', observed_col='N_observed', propensity_col=None, alpha=0.05):
     """
     Calculates the Kaplan-Meier estimate from a DataFrame.
 
@@ -17,7 +16,7 @@ def kaplan_meier(df, time_col='time', event_col='DEATH_EVENT', observed_col='N_o
         DataFrame with columns: 'time', 'survival_prob', 'cumulative_deaths', 'N_observed', and confidence intervals
     """
     # get max time
-    max_time = df['time'].max()
+    max_time = df[time_col].max()
 
     # get total number of individuals observed at time t
     n_t = df.groupby(time_col)[[time_col]].count().rename(columns={time_col: observed_col})
@@ -37,6 +36,12 @@ def kaplan_meier(df, time_col='time', event_col='DEATH_EVENT', observed_col='N_o
 
     # calculate n individuals who experience event at time t
     d_t = events_by_time[event_col]
+
+    # weight by propensity
+    if propensity_col is not None:
+        for t in n_t.index:
+            n_t.loc[t] = (df.loc[df[time_col] >= t, propensity_col]).sum() # sum of propensities at risk at time t
+            d_t.loc[t] = (df.loc[df[time_col] == t, event_col] * df.loc[df[time_col] == t, propensity_col]).sum()
 
     # Calculate cumulative survival probability
     S_hat_t = (1 - (d_t / n_t)).cumprod()
@@ -102,28 +107,3 @@ def nearest_neighbor_km(data, patient_features, time_col, event_col, n_neighbors
         patient_km_fits[i] = kmf
 
     return patient_km_fits
-
-
-def evaluate_c_index(data, patient_km_fits, time_col, event_col):
-    """
-    Evaluates the performance of the nearest-neighbor KM estimator using the C-index.
-
-    Args:
-        data: Pandas DataFrame containing patient data.
-        patient_km_fits: Dictionary of KaplanMeierFitter objects returned by nearest_neighbor_km.
-        time_col: Name of the column representing time-to-event.
-        event_col: Name of the column representing the event indicator.
-
-    Returns:
-        The C-index.
-    """
-
-    true_times = data[time_col].values
-    true_events = data[event_col].values
-    predicted_median_survival_times = []
-
-    for i in range(len(data)):
-        kmf = patient_km_fits[i]
-        predicted_median_survival_times.append(kmf.median_survival_time_)
-
-    return concordance_index(true_times, predicted_median_survival_times, true_events)
