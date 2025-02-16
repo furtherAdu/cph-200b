@@ -10,7 +10,9 @@ feature_config = dict(
     flchain=['flc.grp', 'creatinine', 'kappa', 'sample.yr', 'lambda', 'age', 'sex', 'mgus'],
     gbsg=['x4', 'x5', 'x0', 'x1', 'x6', 'x2', 'x3'],
     metabric=['x7', 'x4', 'x8', 'x5', 'x0', 'x1', 'x6', 'x2', 'x3'],
-    nwtco=['histol_2', 'instit_2', 'study_4', 'age', 'in.subcohort', 'stage']
+    nwtco=['histol_2', 'instit_2', 'study_4', 'age', 'in.subcohort', 'stage'],
+    ist=["RDELAY","RCONSC","SEX","AGE","RSLEEP","RATRIAL","RCT","RVISINF","RHEP24",
+         "RASP3","RSBP","RDEF1","RDEF2","RDEF3","RDEF4","RDEF5","RDEF6","RDEF7","RDEF8","STYPE"]
 )
 
 clinical_feature_type = dict(

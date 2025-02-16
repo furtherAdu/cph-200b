@@ -5,7 +5,7 @@ import pandas as pd
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from src.vectorizer import Vectorizer
-from src.directory import csv_paths
+from src.directory import dataset_paths
 from sklearn.model_selection import train_test_split
 
 
@@ -50,7 +50,7 @@ class SurvivalDataModule(pl.LightningDataModule):
             **kwargs):
         super().__init__()
 
-        self.raw_data = pd.read_csv(csv_paths[dataset_name])
+        self.raw_data = pd.read_csv(dataset_paths[dataset_name])
         self.n_samples = len(self.raw_data)
         self.time_col = time_col
         self.event_col = event_col
