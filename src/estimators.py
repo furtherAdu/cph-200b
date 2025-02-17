@@ -223,7 +223,7 @@ def aipw_estimator(data, treatment_var, outcome_var, covariates):
     mu0 = outcome_model.predict(X_control)
     
     # AIPW (doubly robust)
-    ipw_term = T / pi * (Y - mu1) + (1 - T) / (1 - pi) * (Y - mu0)
+    ipw_term = T / pi * (Y - mu1) - (1 - T) / (1 - pi) * (Y - mu0)
     s_learner_term = mu1 - mu0
 
     tau = (s_learner_term + ipw_term).mean()
