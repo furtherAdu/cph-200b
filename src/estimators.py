@@ -109,23 +109,33 @@ def nearest_neighbor_km(data, patient_features, time_col, event_col, n_neighbors
 
     return patient_km_fits
 
+
+def propensity_estimator(X, T): # propensity scores
+    propensity_model = GradientBoostingClassifier(random_state=40)
+    pi = propensity_model.fit(X, T).predict_proba(X)[:, 1]
+    return pi
+
+
 def unadjusted_DM_estimator(data, treatment_var, outcome_var, **kwargs):
     EY1 = data.loc[data[treatment_var] == 1, outcome_var].mean()
     EY0 = data.loc[data[treatment_var] == 0, outcome_var].mean()
+
     tau = EY1 - EY0
-    return tau
+
+    return tau, None
 
 def ipw_estimator(data, treatment_var, outcome_var, covariates):
     X = data[covariates]
     T = data[treatment_var]
     Y = data[outcome_var]
     
-    propensity_model = GradientBoostingClassifier(random_state=40)
-    pi = propensity_model.fit(X, T).predict_proba(X)[:, 1]
+    pi = propensity_estimator(X,T)
 
-    tau = ((T * Y/ pi) - ((1-T) * Y / (1 - pi))).mean()
+    tau_i = (T * Y/ pi) - ((1-T) * Y / (1 - pi))
+    variance = (tau_i).var()
+    tau = (tau_i).mean()
 
-    return tau
+    return tau, variance
 
 def t_learner(data, treatment_var, outcome_var, covariates):
     # https://statisticaloddsandends.wordpress.com/2022/05/20/t-learners-s-learners-and-x-learners/
@@ -141,12 +151,15 @@ def t_learner(data, treatment_var, outcome_var, covariates):
     models[0].fit(X[T == 0], Y[T == 0])
     models[1].fit(X[T == 1], Y[T == 1])
 
-    mu0 = models[0].predict(X).mean()
-    mu1 = models[1].predict(X).mean()
+    mu0 = models[0].predict(X)
+    mu1 = models[1].predict(X)
 
-    tau = mu1 - mu0
+    tau_i = mu1 - mu0
 
-    return tau
+    variance = (tau_i).var()
+    tau = (tau_i).mean()
+
+    return tau, variance
 
 def s_learner(data, treatment_var, outcome_var, covariates):
     # https://statisticaloddsandends.wordpress.com/2022/05/20/t-learners-s-learners-and-x-learners/
@@ -164,9 +177,12 @@ def s_learner(data, treatment_var, outcome_var, covariates):
     mu1 = model.predict(X_treated).mean()
     mu0 = model.predict(X_control).mean()
 
-    tau = mu1 - mu0
+    tau_i = mu1 - mu0
 
-    return tau
+    variance = (tau_i).var()
+    tau = (tau_i).mean()
+
+    return tau, variance
 
 def x_learner(data, treatment_var, outcome_var, covariates):
     # https://statisticaloddsandends.wordpress.com/2022/05/20/t-learners-s-learners-and-x-learners/
@@ -193,12 +209,14 @@ def x_learner(data, treatment_var, outcome_var, covariates):
     tau_models[1].fit(X[T==1], Y[T==1] - models[0].predict(X[T==1]))
 
     # get propensity score
-    propensity_model = GradientBoostingClassifier(random_state=40)
-    pi = propensity_model.fit(X, T).predict_proba(X)[:, 1]
+    pi = propensity_estimator(X,T)
 
-    tau = pi * tau_models[0].predict(X) + (1-pi) * tau_models[1].predict(X)
+    tau_i = pi * tau_models[0].predict(X) + (1-pi) * tau_models[1].predict(X)
 
-    return tau.mean()
+    variance = (tau_i).var()
+    tau = (tau_i).mean()
+
+    return tau, variance
 
 def aipw_estimator(data, treatment_var, outcome_var, covariates):
     X = data[covariates]
@@ -207,8 +225,7 @@ def aipw_estimator(data, treatment_var, outcome_var, covariates):
     Y = data[outcome_var]
 
     # propensity model
-    propensity_model = GradientBoostingClassifier(random_state=40)
-    pi = propensity_model.fit(X, T).predict_proba(X)[:, 1]
+    pi = propensity_estimator(X,T)
 
     # s-learner outcome model
     outcome_model = GradientBoostingClassifier(random_state=40)
@@ -226,7 +243,10 @@ def aipw_estimator(data, treatment_var, outcome_var, covariates):
     ipw_term = T / pi * (Y - mu1) - (1 - T) / (1 - pi) * (Y - mu0)
     s_learner_term = mu1 - mu0
 
-    tau = (s_learner_term + ipw_term).mean()
+    tau_i = s_learner_term + ipw_term
 
-    return tau
+    variance = (tau_i).var()
+    tau = (tau_i).mean()
+
+    return tau, variance
 

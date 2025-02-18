@@ -6,7 +6,7 @@ from pycox.datasets import flchain, gbsg, metabric, nwtco
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, norm
 
 
 def get_descriptive_stats(dataset_name=None, df=None):
@@ -160,3 +160,12 @@ def preprocess_ist(data, feature_cols, untransformed_cols, heparin_cols, combine
     covariates = [x for x in data.columns for y in feature_cols if x.startswith(y)]
 
     return data, covariates
+
+
+def check_estimator_normality(value, variance, alpha=0.05):
+    std_dev = np.sqrt(variance)
+    z_score = value / std_dev
+
+    p_value = 2 * (1 - norm.cdf(abs(z_score)))
+
+    return {z_score:z_score, p_value:p_value, 'significant': p_value < alpha}
