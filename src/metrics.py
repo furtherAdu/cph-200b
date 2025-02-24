@@ -89,3 +89,16 @@ def evaluate_c_index(data, patient_km_fits, time_col, event_col):
         predicted_median_survival_times.append(kmf.median_survival_time_)
 
     return concordance_index(true_times, predicted_median_survival_times, true_events)
+
+def mmd(x, y): # linear MMD
+    k_xx = torch.mm(x, x.t())
+    k_yy = torch.mm(y, y.t())
+    k_xy = torch.mm(x, y.t())
+
+    mmd = torch.mean(k_xx) + torch.mean(k_yy) - 2 * torch.mean(k_xy)
+
+    return mmd 
+
+def log_loss(y_pred, Y, eps=1e-8):
+    log_loss =  Y * torch.log(y_pred + eps) + (1 - Y) * torch.log(1 - y_pred + eps)
+    return -log_loss

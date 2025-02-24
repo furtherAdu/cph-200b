@@ -6,6 +6,7 @@ import numpy as np
 import scipy.stats as stats
 import torch
 from torch import nn
+from torch import optim
 from torch.optim.lr_scheduler import LinearLR
 from torchsurv.metrics.auc import Auc
 from torchsurv.metrics.cindex import ConcordanceIndex
@@ -16,14 +17,16 @@ from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 from src.data_dict import clinical_feature_type
-from src._torch import CoxRiskTorch
+from src._torch import CoxRiskTorch, CounterfactualRegressionTorch
 from src.directory import log_dir
-from src.metrics import cox_partial_likelihood
+from src.metrics import cox_partial_likelihood, mmd, log_loss
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
 
 pl.seed_everything(40)
 
 
-def get_trainer(model_name, checkpoint_callback, monitor='val_loss', mode='min', **kwargs):
+def get_trainer(model_name, checkpoint_callback, monitor='val_loss', mode='min', max_epochs=100, **kwargs):
     # set up logging
     logger = CSVLogger(save_dir=log_dir, name=model_name)
 
@@ -36,7 +39,7 @@ def get_trainer(model_name, checkpoint_callback, monitor='val_loss', mode='min',
             checkpoint_callback
         ],
         log_every_n_steps=1,
-        max_epochs=100,
+        max_epochs=max_epochs,
     )
 
     trainer_kwargs.update(kwargs)
@@ -70,6 +73,19 @@ def get_log_dir_path(model_name):
 
     return dir_path
 
+def get_logger(model_name, project_name='CPH_200B', wandb_entity='furtheradu', dir_path='..',**kwargs):
+    if kwargs.get('disable_wandb'):
+        print("wandb logging is disabled.")
+        return None
+    else:
+        logger = pl.loggers.WandbLogger(
+            project=project_name,
+            entity=wandb_entity,
+            group=model_name,
+            dir=dir_path,
+            **kwargs
+        )
+        return logger
 
 class MyProgressBar(TQDMProgressBar):
     def init_validation_tqdm(self):
@@ -288,3 +304,199 @@ class CoxRiskLightning(pl.LightningModule):
     def predict_epoch_end(self):
         y_hat = torch.cat([o["y_hat"] for o in self.outputs['predict']]).squeeze()
         return y_hat
+
+
+class CounterfactualRegressionLightning(pl.LightningModule):
+    def __init__(self, 
+                 input_features, 
+                 r_hidden_dim=200,
+                 h_hidden_dim=100,
+                 alpha=1.0,
+                 learning_rate=1e-3,
+                 complexity_lambda=1.0,
+                 outcome_col='Y',
+                 treatment_col='T',
+                 outcome_type='continuous'):
+        super().__init__()
+        valid_outcome_types = ['continuous', 'binary']
+        assert outcome_type in valid_outcome_types, f'outcome_type must be in {valid_outcome_types}'
+        self.save_hyperparameters()
+
+        self.alpha = alpha
+        self.learning_rate = learning_rate
+        self.input_features = input_features
+        self.input_dim = len(self.input_features)
+        self.r_hidden_dim = r_hidden_dim
+        self.h_hidden_dim = h_hidden_dim
+        self.outcome_type = outcome_type
+        self.complexity_lambda = complexity_lambda
+        
+        if self.outcome_type == 'continuous':
+            self.loss_fn = nn.MSELoss(reduction='none')
+        else:
+            # self.loss_fn = log_loss
+            self.loss_fn = nn.BCEWithLogitsLoss(reduction='none')
+        
+        # structures to hold outputs/metrics
+        self.outputs = defaultdict(list)
+        self.metric_dict = defaultdict(dict)
+
+        self.model = CounterfactualRegressionTorch(input_dim=self.input_dim,
+                                                  r_hidden_dim=self.r_hidden_dim,
+                                                  h_hidden_dim=self.h_hidden_dim)
+
+        # init weights
+        self.model.apply(self.init_weights)
+
+    def forward(self, x, t):
+        return self.model(x,t)
+
+    def configure_optimizers(self):
+        h_weight_decay = 1e-2
+        hypothesis_params = []
+        other_params = []
+
+        for name, param in self.named_parameters():
+            if 'h0' in name or 'h1' in name:
+                hypothesis_params.append(param)
+            else:
+                other_params.append(param)
+
+        # define optimizer with different weight decay for each group
+        optimizer = optim.Adam([
+            {'params': hypothesis_params, 'weight_decay': h_weight_decay},
+            {'params': other_params, 'weight_decay': 0}
+        ], lr=self.learning_rate)
+
+        return optimizer
+        
+    def get_factual_loss(self, y_pred, Y, T, threshold=.5):
+        u = self.trainer.datamodule.u
+        w_i = (T / (2 * u) + (1 - T) / (2 * (1 - u)))
+        # if self.outcome_type == 'binary':
+        #     y_pred = (y_pred > threshold).float()
+        loss = self.loss_fn(y_pred, Y)
+        factual_loss = (w_i * loss).mean() # [~torch.any(loss.isnan(),dim=1)]
+        return factual_loss
+
+    @staticmethod
+    def safely_to_numpy(tensor):
+        return tensor.to(torch.float).cpu().numpy()
+    
+    @staticmethod
+    def init_weights(m, nonlinearity='relu'):
+        if isinstance(m, nn.Linear):
+            nn.init.kaiming_uniform_(m.weight, nonlinearity=nonlinearity)
+
+    @staticmethod
+    def get_model_input(batch):
+        return batch['X'].squeeze(dim=1).double(), batch['Y'].double(), batch['T'].double()
+    
+    def step(self, batch, batch_idx, stage):
+        X, Y, T = self.get_model_input(batch)
+
+        out = self.model(X,T)
+        phi_x, y0, y1 = out['phi_x'], out['y0'], out['y1']
+        
+        y_pred = y1 * T + y0 * (1 - T)
+        phi_x_0 = phi_x[(T == 0).squeeze()]
+        phi_x_1 = phi_x[(T == 1).squeeze()]
+
+        factual_loss = self.get_factual_loss(y_pred,Y,T)
+        IPM_loss = mmd(phi_x_0, phi_x_1)
+        model_complexity_loss = torch.Tensor([0]) * self.complexity_lambda
+        loss = self.alpha * IPM_loss + factual_loss + model_complexity_loss
+        
+        # store outputs
+        self.outputs[stage].append({'X':X, 
+                                    'T':T,
+                                    'Y':Y,
+                                    "phi_x":phi_x,
+                                    'y_pred':y_pred})
+
+        # log metrics
+        if stage not in ['predict', 'test']:
+            log_kwargs = dict(prog_bar=True, sync_dist=True)
+            self.log(f'{stage}_IPM_loss', IPM_loss, **log_kwargs)
+            self.log(f'{stage}_factual_loss', factual_loss, **log_kwargs)
+            self.log(f'{stage}_loss', loss, **log_kwargs)
+
+        return loss
+    
+    def on_epoch_end(self, stage):
+        # concat outputs
+        outputs_vars = ['X', 'T', 'Y', 'phi_x', 'y_pred']
+        X, T, Y, phi_x, y_pred = [torch.cat([o[x] for o in self.outputs[stage]]).squeeze() 
+                               for x in outputs_vars]
+
+        # calculate performance metrics
+        factual_loss = self.get_factual_loss(y_pred,Y,T)
+        tau = y_pred[(T == 1).squeeze()].mean() - y_pred[(T == 0).squeeze()].mean()
+        
+        metric_dict = {
+            f'{stage}_{self.loss_fn._get_name()}': factual_loss,
+            f'{stage}_tau': tau
+        }
+
+        if stage not in ['predict']:  # log metrics
+            log_kwargs = dict(prog_bar=True, sync_dist=True)
+            self.log_dict(metric_dict, **log_kwargs)
+
+        self.metric_dict[stage].update(metric_dict)
+        
+        # send tensors to numpy
+        X, T, phi_x = [self.safely_to_numpy(x) for x in [X, T, phi_x]]        
+        
+        # get t-SNE embeddings
+        embeddings = {}
+        for x_name, x in dict(zip(['X', 'phi_x'], [X, phi_x])).items():
+            embeddings[x_name] = TSNE(random_state=40).fit_transform(x)
+        
+        if self.logger.experiment and stage not in ['train']:
+            for k, embedding in embeddings.items():
+                # get plot name
+                key = f'tSNE {k}, epoch{self.current_epoch}'
+                
+                # make figure
+                fig = plt.figure(figsize=(10, 8))
+                ax = plt.scatter(embedding[:, 0], embedding[:, 1], c=T) # TODO: suppress printing
+                plt.colorbar(ax, label='treatment')
+                plt.title(key)
+                                
+                # log figure
+                self.logger.log_image(key=key, images=[fig])
+                
+                # suppress displaying
+                plt.close(fig)
+
+        # clear outputs
+        self.outputs[stage] = []
+
+        # clean space
+        gc.collect()
+        
+    def training_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, "train")
+
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, "val")
+
+    def test_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, "test")
+
+    def predict_step(self, batch, batch_idx):
+        return self.step(batch, batch_idx, "predict")
+
+    # def on_train_epoch_end(self):
+    #     self.on_epoch_end('train')
+
+    # def on_validation_epoch_end(self):
+    #     self.on_epoch_end('val')
+
+    def on_test_epoch_end(self):
+        self.on_epoch_end('test')
+
+    # def on_predict_epoch_end(self):
+    #     self.on_epoch_end('predict')
+    
+    

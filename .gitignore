@@ -30,3 +30,6 @@ logs/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# wandb
+**wandb/

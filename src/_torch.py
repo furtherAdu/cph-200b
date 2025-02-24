@@ -1,4 +1,5 @@
 import os.path
+import itertools
 import numpy as np
 from math import ceil
 from tqdm import tqdm
@@ -259,3 +260,66 @@ class DeepSurvival(nn.Module):
     def safely_to_numpy(tensor):
         return tensor.to(torch.float).cpu().numpy()
     
+
+class CFR_RepresentationNetwork(nn.Module):
+    def __init__(self, input_dim, hidden_dim=200, n_layers=3):
+        super().__init__()
+        assert n_layers >= 2, 'n_layers must be >= 2'
+
+        middle_layers = list(
+            itertools.chain.from_iterable(
+                [(nn.Linear(hidden_dim, hidden_dim), nn.BatchNorm1d(hidden_dim), nn.ELU()) for _ in range(n_layers-2)]
+            )
+        )
+        layers = [
+            nn.Linear(input_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.ELU(),
+            *middle_layers,
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.ELU(),
+        ]
+        self.net = nn.Sequential(*layers)
+        
+    def forward(self, x):
+        return self.net(x)
+
+class CFR_HypothesisNetwork(nn.Module):
+    def __init__(self, input_dim, hidden_dim=100, n_layers=3):
+        super().__init__()
+        assert n_layers >= 2, 'n_layers must be >= 2'
+
+        middle_layers = list(
+            itertools.chain.from_iterable(
+                [(nn.Linear(hidden_dim, hidden_dim),nn.ELU()) for _ in range(n_layers-2)]
+            )
+        )
+        layers = [
+            nn.Linear(input_dim, hidden_dim),
+            nn.ELU(),
+            *middle_layers,
+            nn.Linear(hidden_dim, 1),
+            # nn.ReLU() # make output >= 0
+        ]
+        self.net = nn.Sequential(*layers)
+        
+    def forward(self, x):
+        return self.net(x)
+
+class CounterfactualRegressionTorch(nn.Module):
+    def __init__(self, input_dim, r_hidden_dim=200, h_hidden_dim=100):
+        super().__init__()
+
+        self.phi = CFR_RepresentationNetwork(input_dim, r_hidden_dim)
+        self.h1 = CFR_HypothesisNetwork(r_hidden_dim +1, h_hidden_dim)
+        self.h0 = CFR_HypothesisNetwork(r_hidden_dim + 1, h_hidden_dim)
+
+        self.double()
+
+    def forward(self, x, t):
+        phi_x = self.phi(x)
+        h_input = torch.cat([phi_x, t], dim=1) # concatenate representation with treatment
+        y0 = self.h1(h_input)
+        y1 = self.h0(h_input)
+        return {'phi_x': phi_x, 'y0': y0, 'y1':y1}

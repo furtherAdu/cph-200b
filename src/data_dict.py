@@ -12,7 +12,8 @@ feature_config = dict(
     metabric=['x7', 'x4', 'x8', 'x5', 'x0', 'x1', 'x6', 'x2', 'x3'],
     nwtco=['histol_2', 'instit_2', 'study_4', 'age', 'in.subcohort', 'stage'],
     ist=["RDELAY","RCONSC","SEX","AGE","RSLEEP","RATRIAL","RCT","RVISINF","RHEP24",
-         "RASP3","RSBP","RDEF1","RDEF2","RDEF3","RDEF4","RDEF5","RDEF6","RDEF7","RDEF8","STYPE"]
+         "RASP3","RSBP","RDEF1","RDEF2","RDEF3","RDEF4","RDEF5","RDEF6","RDEF7","RDEF8","STYPE"],
+    ihdp=[f'X{i}' for i in range(1,26)],
 )
 
 clinical_feature_type = dict(
@@ -78,7 +79,11 @@ clinical_feature_type = dict(
            'study_4': 'categorical', 
            'age': 'numerical', 
            'in.subcohort': 'categorical', 
-           'stage': 'categorical'}
+           'stage': 'categorical'},
+    ihdp={
+        **{f'X{i}':'numerical' for i in range(1,7)},
+        **{f'X{i}':'numerical' for i in range(7,26)}
+    }
 )
 
 feature_transforms = defaultdict(lambda: defaultdict(list))
