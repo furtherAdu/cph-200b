@@ -126,7 +126,7 @@ class SurvivalDataModule(pl.LightningDataModule):
         self.vectorizer.fit(data)
 
 
-class CFRDataset(torch.utils.data.Dataset):
+class FromPandasDataset(torch.utils.data.Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
 
@@ -138,7 +138,7 @@ class CFRDataset(torch.utils.data.Dataset):
         return sample_dict
 
 
-class CFRDataModule(pl.LightningDataModule):
+class XYTDataModule(pl.LightningDataModule):
     def __init__(
             self,
             batch_size=128,
@@ -193,14 +193,14 @@ class CFRDataModule(pl.LightningDataModule):
         dataset_kwargs = {}
 
         if stage == 'fit':
-            self.train = CFRDataset(self.splits['train'], **dataset_kwargs)
-            self.val = CFRDataset(self.splits['val'], **dataset_kwargs)
+            self.train = FromPandasDataset(self.splits['train'], **dataset_kwargs)
+            self.val = FromPandasDataset(self.splits['val'], **dataset_kwargs)
         if stage == 'validate':
-            self.val = CFRDataset(self.splits['val'], **dataset_kwargs)
+            self.val = FromPandasDataset(self.splits['val'], **dataset_kwargs)
         if stage == 'test':
-            self.test = CFRDataset(self.splits['test'], **dataset_kwargs)
+            self.test = FromPandasDataset(self.splits['test'], **dataset_kwargs)
         if stage == 'predict':
-            self.predict = CFRDataset(self.splits['test'], **dataset_kwargs)
+            self.predict = FromPandasDataset(self.splits['test'], **dataset_kwargs)
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True)

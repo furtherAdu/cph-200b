@@ -300,7 +300,6 @@ class CFR_HypothesisNetwork(nn.Module):
             nn.ELU(),
             *middle_layers,
             nn.Linear(hidden_dim, 1),
-            # nn.ReLU() # make output >= 0
         ]
         self.net = nn.Sequential(*layers)
         
@@ -323,3 +322,37 @@ class CounterfactualRegressionTorch(nn.Module):
         y0 = self.h1(h_input)
         y1 = self.h0(h_input)
         return {'phi_x': phi_x, 'y0': y0, 'y1':y1}
+    
+
+class DragonNetTorch(nn.Module):
+    def __init__(self, input_dim, sr_hidden_dim=200, co_hidden_dim=100, dropout_rate=0.2):
+        super().__init__()
+
+        self.shared_representation = CFR_RepresentationNetwork(input_dim, sr_hidden_dim)
+
+        self.outcome_head_t1 = nn.Sequential(
+            nn.Linear(sr_hidden_dim, co_hidden_dim // 2),
+            nn.ELU(),
+            nn.Linear(co_hidden_dim // 2, 1)
+        )
+
+        self.outcome_head_t0 = nn.Sequential(
+            nn.Linear(sr_hidden_dim, co_hidden_dim // 2),
+            nn.ELU(),
+            nn.Linear(co_hidden_dim // 2, 1)
+        )
+
+        self.treatment_head = nn.Sequential(
+            nn.Linear(sr_hidden_dim, 1),
+            nn.Sigmoid()
+        )
+                
+        self.double()
+
+    def forward(self, x):
+        shared_representation = self.shared_representation(x)
+        y1_hat = self.outcome_head_t1(shared_representation)
+        y0_hat = self.outcome_head_t0(shared_representation)
+        t_hat = self.treatment_head(shared_representation)
+        
+        return {'y1':y1_hat, 'y0':y0_hat, 't':t_hat}

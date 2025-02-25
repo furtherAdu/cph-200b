@@ -2,7 +2,7 @@ import torch
 import pandas as pd
 from scipy.stats import chi2, norm
 from lifelines.utils import concordance_index
-
+import torch.nn.functional as F
 
 def cox_partial_likelihood(risk_scores, c, t, weights=None):
     event_idxs = (c.squeeze() == 1).nonzero()
@@ -102,3 +102,17 @@ def mmd(x, y): # linear MMD
 def log_loss(y_pred, Y, eps=1e-8):
     log_loss =  Y * torch.log(y_pred + eps) + (1 - Y) * torch.log(1 - y_pred + eps)
     return -log_loss
+
+def targeted_regularization_loss(y1, y0, t, Y, T, eps, beta=1.0):
+    y_pred = y1 * T + y0 * (1 - T)
+    q_tilde = y_pred + eps * ((T / t) - (1 - T)/(1 - t))
+    gamma = (Y - q_tilde).pow(2)
+    targeted_regularization_loss = beta * gamma.mean()
+    return targeted_regularization_loss
+
+def dragonnet_loss(y1, y0, t, Y, T, alpha=1.0):
+    y_pred = y1 * T + y0 * (1 - T)
+    outcome_loss = F.mse_loss(y_pred, Y)
+    treatment_loss = F.binary_cross_entropy(t, T)
+    dragonnet_loss = outcome_loss + alpha * treatment_loss 
+    return dragonnet_loss
