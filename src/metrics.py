@@ -63,7 +63,6 @@ def log_rank_test(df, time_col, event_col, group_col, propensity_col=None):
     p = 2 * (1 - chi2.cdf(abs(z), 1)) # two-sided
     # p = 2 * (1 - norm.cdf(abs(z), 1)) # two-sided
 
-
     return z, p
 
 def evaluate_c_index(data, patient_km_fits, time_col, event_col):

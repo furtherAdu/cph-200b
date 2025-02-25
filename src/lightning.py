@@ -410,7 +410,8 @@ class CounterfactualRegressionLightning(pl.LightningModule):
                                     'T':T,
                                     'Y':Y,
                                     "phi_x":phi_x,
-                                    'y_pred':y_pred})
+                                    'y0':y0,
+                                    'y1':y1})
 
         # log metrics
         if stage not in ['predict', 'test']:
@@ -454,7 +455,7 @@ class CounterfactualRegressionLightning(pl.LightningModule):
         if self.logger.experiment and stage not in ['train']:
             for k, embedding in embeddings.items():
                 # get plot name
-                key = f'tSNE {k}, epoch{self.current_epoch}'
+                key = f'tSNE {k}, CFR alpha {self.alpha}, epoch{self.current_epoch}'
                 
                 # make figure
                 fig = plt.figure(figsize=(10, 8))
