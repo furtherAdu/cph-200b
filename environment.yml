@@ -7,7 +7,9 @@ channels:
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
+  - annotated-types=0.6.0=py311h06a4308_0
   - anyio=4.6.2=py311h06a4308_0
+  - appdirs=1.4.4=pyhd3eb1b0_0
   - argon2-cffi=21.3.0=pyhd3eb1b0_0
   - argon2-cffi-bindings=21.2.0=py311h5eee18b_1
   - arrow-cpp=11.0.0=ha770c72_39_cpu
@@ -43,9 +45,10 @@ dependencies:
   - c-ares=1.19.1=h5eee18b_0
   - ca-certificates=2024.12.31=h06a4308_0
   - cached_property=1.5.2=pyha770c72_1
-  - certifi=2024.12.14=py311h06a4308_0
+  - certifi=2025.1.31=py311h06a4308_0
   - cffi=1.17.1=py311h1fdaa30_1
   - charset-normalizer=3.3.2=pyhd3eb1b0_0
+  - click=8.1.7=py311h06a4308_0
   - colorama=0.4.6=pyhd8ed1ab_1
   - comm=0.2.1=py311h06a4308_0
   - contourpy=1.3.1=py311hd18a35c_0
@@ -61,6 +64,8 @@ dependencies:
   - debugpy=1.8.11=py311h6a678d5_0
   - decorator=5.1.1=pyhd3eb1b0_0
   - defusedxml=0.7.1=pyhd3eb1b0_0
+  - docker-pycreds=0.4.0=pyhd3eb1b0_0
+  - eval_type_backport=0.2.2=pyha770c72_0
   - executing=0.8.3=pyhd3eb1b0_0
   - expat=2.6.4=h6a678d5_0
   - feather-format=0.4.1=pyhd8ed1ab_1
@@ -72,6 +77,8 @@ dependencies:
   - fsspec=2024.12.0=py311h06a4308_0
   - gflags=2.2.2=h6a678d5_1
   - giflib=5.2.2=h5eee18b_0
+  - gitdb=4.0.7=pyhd3eb1b0_0
+  - gitpython=3.1.43=py311h06a4308_0
   - glib=2.78.4=h6a678d5_0
   - glib-tools=2.78.4=h6a678d5_0
   - glog=0.6.0=h6f12383_0
@@ -232,6 +239,7 @@ dependencies:
   - prometheus_client=0.21.0=py311h06a4308_0
   - prompt-toolkit=3.0.43=py311h06a4308_0
   - prompt_toolkit=3.0.43=hd3eb1b0_0
+  - protobuf=4.23.4=py311h46cbc50_3
   - psutil=5.9.0=py311h5eee18b_1
   - ptyprocess=0.7.0=pyhd3eb1b0_2
   - pure_eval=0.2.2=pyhd3eb1b0_0
@@ -241,6 +249,8 @@ dependencies:
   - pycox=0.3.0=pyhd8ed1ab_1
   - pycparser=2.21=pyhd3eb1b0_0
   - pycryptodomex=3.21.0=py311h5eee18b_1
+  - pydantic=2.10.3=py311h06a4308_0
+  - pydantic-core=2.27.1=py311h4aa5aa6_0
   - pygments=2.15.1=py311h06a4308_1
   - pyppmd=1.0.0=py311h6a678d5_0
   - pyqt=5.15.10=py311h6a678d5_0
@@ -277,9 +287,12 @@ dependencies:
   - scipy=1.15.1=py311hc1ac118_0
   - seaborn=0.13.2=py311h06a4308_0
   - send2trash=1.8.2=py311h06a4308_1
+  - sentry-sdk=2.18.0=py311h06a4308_0
+  - setproctitle=1.2.2=py311h5eee18b_2
   - setuptools=75.1.0=py311h06a4308_0
   - sip=6.7.12=py311h6a678d5_1
   - six=1.16.0=pyhd3eb1b0_1
+  - smmap=4.0.0=pyhd3eb1b0_0
   - snappy=1.1.10=h6a678d5_1
   - sniffio=1.3.0=py311h06a4308_0
   - soupsieve=2.5=py311h06a4308_0
@@ -301,11 +314,13 @@ dependencies:
   - tornado=6.4.2=py311h5eee18b_0
   - tqdm=4.67.1=pyhd8ed1ab_1
   - traitlets=5.14.3=py311h06a4308_0
+  - typing=3.10.0.0=py311h06a4308_0
   - typing-extensions=4.12.2=py311h06a4308_0
   - typing_extensions=4.12.2=py311h06a4308_0
   - tzdata=2024b=h04d1e81_0
   - ucx=1.14.1=hf587318_1
   - urllib3=2.2.3=py311h06a4308_0
+  - wandb=0.19.7=py311h9e33e62_0
   - wcwidth=0.2.5=pyhd3eb1b0_0
   - webencodings=0.5.1=py311h06a4308_1
   - websocket-client=1.8.0=py311h06a4308_0
@@ -323,3 +338,4 @@ dependencies:
       - kiwisolver==1.4.4
       - pyparsing==3.2.0
       - unicodedata2==15.1.0
+prefix: /home/hentipapai/miniconda3/envs/cph-200b
